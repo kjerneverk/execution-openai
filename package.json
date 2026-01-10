@@ -1,0 +1,49 @@
+{
+  "name": "@riotprompt/execution-openai",
+  "version": "0.0.1",
+  "description": "OpenAI provider for execution - implements Provider interface",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest run",
+    "lint": "eslint src"
+  },
+  "keywords": [
+    "llm",
+    "openai",
+    "gpt",
+    "execution",
+    "provider"
+  ],
+  "author": "Tim O'Brien <tobrien@discursive.com>",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kjerneverk/execution-openai"
+  },
+  "dependencies": {
+    "openai": "^4.103.0",
+    "tiktoken": "^1.0.21"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.6",
+    "@typescript-eslint/eslint-plugin": "^8.33.1",
+    "@typescript-eslint/parser": "^8.33.1",
+    "eslint": "^9.28.0",
+    "globals": "^16.2.0",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.4",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^3.2.4"
+  }
+}
