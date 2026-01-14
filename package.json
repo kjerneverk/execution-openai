@@ -37,6 +37,8 @@
     "url": "https://github.com/kjerneverk/execution-openai"
   },
   "dependencies": {
+    "@theunwalked/offrecord": "^0.0.1",
+    "@theunwalked/spotclean": "^0.0.3",
     "openai": "^4.103.0",
     "tiktoken": "^1.0.21"
   },

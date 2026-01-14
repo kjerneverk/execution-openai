@@ -7,6 +7,45 @@
  */
 
 import OpenAI from 'openai';
+import { getRedactor } from '@theunwalked/offrecord';
+import { 
+    createSafeError, 
+    configureErrorSanitizer,
+    configureSecretGuard,
+} from '@theunwalked/spotclean';
+
+// Register OpenAI API key patterns on module load
+const redactor = getRedactor();
+redactor.register({
+    name: 'openai',
+    patterns: [
+        /sk-[a-zA-Z0-9]{20,}/g,
+        /sk-proj-[a-zA-Z0-9_-]+/g,
+    ],
+    validator: (key: string) => /^sk-(proj-)?[a-zA-Z0-9_-]{20,}$/.test(key),
+    envVar: 'OPENAI_API_KEY',
+    description: 'OpenAI API keys',
+});
+
+// Configure spotclean for error sanitization
+configureErrorSanitizer({
+    enabled: true,
+    environment: process.env.NODE_ENV === 'production' ? 'production' : 'development',
+    includeCorrelationId: true,
+    sanitizeStackTraces: process.env.NODE_ENV === 'production',
+    maxMessageLength: 500,
+});
+
+configureSecretGuard({
+    enabled: true,
+    redactionText: '[REDACTED]',
+    preservePartial: false,
+    preserveLength: 0,
+    customPatterns: [
+        { name: 'openai', pattern: /sk-[a-zA-Z0-9]{20,}/g, description: 'OpenAI API key' },
+        { name: 'openai-proj', pattern: /sk-proj-[a-zA-Z0-9_-]+/g, description: 'OpenAI project key' },
+    ],
+});
 
 // ===== INLINE TYPES (from 'execution' package) =====
 // These types are duplicated here for build independence.
@@ -87,55 +126,70 @@ export class OpenAIProvider implements Provider {
         options: ExecutionOptions = {}
     ): Promise<ProviderResponse> {
         const apiKey = options.apiKey || process.env.OPENAI_API_KEY;
-        if (!apiKey) throw new Error('OpenAI API key is required');
+        
+        if (!apiKey) {
+            throw new Error('OpenAI API key is required. Set OPENAI_API_KEY environment variable.');
+        }
 
-        const client = new OpenAI({ apiKey });
+        // Validate key format
+        const validation = redactor.validateKey(apiKey, 'openai');
+        if (!validation.valid) {
+            throw new Error('Invalid OpenAI API key format');
+        }
 
-        const model = options.model || request.model || 'gpt-4';
+        try {
+            const client = new OpenAI({ apiKey });
 
-        // Convert messages to OpenAI format
-        const messages = request.messages.map((msg) => {
-            const role =
-                msg.role === 'developer' ? 'system' : msg.role;
+            const model = options.model || request.model || 'gpt-4';
+
+            // Convert messages to OpenAI format
+            const messages = request.messages.map((msg) => {
+                const role =
+                    msg.role === 'developer' ? 'system' : msg.role;
+
+                return {
+                    role: role,
+                    content:
+                        typeof msg.content === 'string'
+                            ? msg.content
+                            : JSON.stringify(msg.content),
+                    name: msg.name,
+                } as any;
+            });
+
+            const response = await client.chat.completions.create({
+                model: model,
+                messages: messages,
+                temperature: options.temperature,
+                max_tokens: options.maxTokens,
+                response_format: request.responseFormat,
+            });
+
+            const choice = response.choices[0];
 
             return {
-                role: role,
-                content:
-                    typeof msg.content === 'string'
-                        ? msg.content
-                        : JSON.stringify(msg.content),
-                name: msg.name,
-            } as any;
-        });
-
-        const response = await client.chat.completions.create({
-            model: model,
-            messages: messages,
-            temperature: options.temperature,
-            max_tokens: options.maxTokens,
-            response_format: request.responseFormat,
-        });
-
-        const choice = response.choices[0];
-
-        return {
-            content: choice.message.content || '',
-            model: response.model,
-            usage: response.usage
-                ? {
-                    inputTokens: response.usage.prompt_tokens,
-                    outputTokens: response.usage.completion_tokens,
-                }
-                : undefined,
-            toolCalls: choice.message.tool_calls?.map((tc) => ({
-                id: tc.id,
-                type: 'function' as const,
-                function: {
-                    name: tc.function.name,
-                    arguments: tc.function.arguments,
-                },
-            })),
-        };
+                content: choice.message.content || '',
+                model: response.model,
+                usage: response.usage
+                    ? {
+                        inputTokens: response.usage.prompt_tokens,
+                        outputTokens: response.usage.completion_tokens,
+                    }
+                    : undefined,
+                toolCalls: choice.message.tool_calls?.map((tc) => ({
+                    id: tc.id,
+                    type: 'function' as const,
+                    function: {
+                        name: tc.function.name,
+                        arguments: tc.function.arguments,
+                    },
+                })),
+            };
+        } catch (error) {
+            // Sanitize error to remove any API keys from error messages
+            // Use spotclean for comprehensive error sanitization
+            throw createSafeError(error as Error, { provider: 'openai' });
+        }
     }
 }
 
