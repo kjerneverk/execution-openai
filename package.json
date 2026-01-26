@@ -1,6 +1,6 @@
 {
   "name": "@riotprompt/execution-openai",
-  "version": "0.0.4",
+  "version": "1.0.0",
   "description": "OpenAI provider for execution - implements Provider interface",
   "type": "module",
   "main": "./dist/index.js",
@@ -20,7 +20,7 @@
     "test": "vitest run --coverage",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src",
-    "precommit": "npm run lint && npm run test",
+    "precommit": "npm run build && npm run lint && npm run test",
     "prepublishOnly": "npm run clean && npm run build"
   },
   "keywords": [
@@ -37,6 +37,8 @@
     "url": "https://github.com/kjerneverk/execution-openai"
   },
   "dependencies": {
+    "@theunwalked/offrecord": "^0.0.1",
+    "@theunwalked/spotclean": "^0.0.3",
     "openai": "^4.103.0",
     "tiktoken": "^1.0.21"
   },

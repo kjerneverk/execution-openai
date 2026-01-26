@@ -10,7 +10,14 @@ export default defineConfig({
       formats: ["es"],
     },
     rollupOptions: {
-      external: ["openai", "tiktoken", "execution"],
+      external: [
+        "openai",
+        "tiktoken",
+        "execution",
+        "@theunwalked/offrecord",
+        "@theunwalked/spotclean",
+        "node:crypto",
+      ],
     },
     sourcemap: true,
     minify: false,
