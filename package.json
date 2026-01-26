@@ -1,6 +1,6 @@
 {
   "name": "@riotprompt/execution-openai",
-  "version": "1.0.0",
+  "version": "1.0.0-dev.0",
   "description": "OpenAI provider for execution - implements Provider interface",
   "type": "module",
   "main": "./dist/index.js",
