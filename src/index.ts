@@ -176,14 +176,16 @@ export class OpenAIProvider implements Provider {
                         outputTokens: response.usage.completion_tokens,
                     }
                     : undefined,
-                toolCalls: choice.message.tool_calls?.map((tc) => ({
-                    id: tc.id,
-                    type: 'function' as const,
-                    function: {
-                        name: tc.function.name,
-                        arguments: tc.function.arguments,
-                    },
-                })),
+                toolCalls: choice.message.tool_calls
+                    ?.filter((tc) => tc.type === 'function')
+                    .map((tc) => ({
+                        id: tc.id,
+                        type: 'function' as const,
+                        function: {
+                            name: (tc as any).function.name,
+                            arguments: (tc as any).function.arguments,
+                        },
+                    })),
             };
         } catch (error) {
             // Sanitize error to remove any API keys from error messages
