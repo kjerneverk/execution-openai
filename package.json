@@ -1,6 +1,6 @@
 {
   "name": "@kjerneverk/execution-openai",
-  "version": "1.0.6-dev.0",
+  "version": "1.0.6",
   "description": "OpenAI provider for execution - implements Provider interface",
   "type": "module",
   "main": "./dist/index.js",
