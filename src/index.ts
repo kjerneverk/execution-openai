@@ -8,6 +8,7 @@
 
 import OpenAI from 'openai';
 import { getRedactor } from '@utilarium/offrecord';
+import { getProxyUrl, createProxyFetch } from './proxy.js';
 import { 
     createSafeError, 
     configureErrorSanitizer,
@@ -138,7 +139,12 @@ export class OpenAIProvider implements Provider {
         }
 
         try {
-            const client = new OpenAI({ apiKey });
+            const clientOptions: ConstructorParameters<typeof OpenAI>[0] = { apiKey };
+            const proxyUrl = getProxyUrl();
+            if (proxyUrl) {
+                clientOptions.fetch = createProxyFetch(proxyUrl);
+            }
+            const client = new OpenAI(clientOptions);
 
             const model = options.model || request.model || 'gpt-4';
 

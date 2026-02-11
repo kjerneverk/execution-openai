@@ -40,7 +40,8 @@
     "@utilarium/offrecord": "^0.0.3",
     "@utilarium/spotclean": "^0.0.4",
     "openai": "^6.16.0",
-    "tiktoken": "^1.0.21"
+    "tiktoken": "^1.0.21",
+    "undici": "^7.21.0"
   },
   "devDependencies": {
     "@types/node": "^25.0.6",
