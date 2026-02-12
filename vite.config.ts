@@ -13,6 +13,7 @@ export default defineConfig({
       external: [
         "openai",
         "tiktoken",
+        "undici",
         "execution",
         "@utilarium/offrecord",
         "@utilarium/spotclean",
