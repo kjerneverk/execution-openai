@@ -60,11 +60,48 @@ export interface Message {
     name?: string;
 }
 
+export interface ToolParameterSchema {
+    type: 'object';
+    properties: Record<string, {
+        type: string;
+        description?: string;
+        enum?: string[];
+        items?: { type: string };
+        default?: any;
+    }>;
+    required?: string[];
+    additionalProperties?: boolean;
+}
+
+export interface ToolDefinition {
+    name: string;
+    description: string;
+    parameters: ToolParameterSchema;
+}
+
+export type StreamChunkType = 'text' | 'tool_call_start' | 'tool_call_delta' | 'tool_call_end' | 'usage' | 'done';
+
+export interface StreamChunk {
+    type: StreamChunkType;
+    text?: string;
+    toolCall?: {
+        id?: string;
+        index?: number;
+        name?: string;
+        argumentsDelta?: string;
+    };
+    usage?: {
+        inputTokens: number;
+        outputTokens: number;
+    };
+}
+
 export interface Request {
     messages: Message[];
     model: Model;
     responseFormat?: any;
     validator?: any;
+    tools?: ToolDefinition[];
     addMessage(message: Message): void;
 }
 
@@ -97,6 +134,7 @@ export interface ExecutionOptions {
 export interface Provider {
     readonly name: string;
     execute(request: Request, options?: ExecutionOptions): Promise<ProviderResponse>;
+    executeStream?(request: Request, options?: ExecutionOptions): AsyncIterable<StreamChunk>;
     supportsModel?(model: Model): boolean;
 }
 
@@ -150,18 +188,47 @@ export class OpenAIProvider implements Provider {
 
             // Convert messages to OpenAI format
             const messages = request.messages.map((msg) => {
-                const role =
-                    msg.role === 'developer' ? 'system' : msg.role;
-
-                return {
-                    role: role,
-                    content:
-                        typeof msg.content === 'string'
+                if (msg.role === 'tool') {
+                    // Tool result message
+                    return {
+                        role: 'tool',
+                        content: typeof msg.content === 'string'
                             ? msg.content
                             : JSON.stringify(msg.content),
-                    name: msg.name,
-                } as any;
-            });
+                        tool_call_id: (msg as any).tool_call_id || '',
+                    };
+                } else if (msg.role === 'assistant' && (msg as any).tool_calls) {
+                    // Assistant message with tool calls
+                    return {
+                        role: 'assistant',
+                        content: msg.content,
+                        tool_calls: (msg as any).tool_calls,
+                    };
+                } else {
+                    const role = msg.role === 'developer' ? 'system' : msg.role;
+                    return {
+                        role: role,
+                        content:
+                            typeof msg.content === 'string'
+                                ? msg.content
+                                : JSON.stringify(msg.content),
+                        name: msg.name,
+                    };
+                }
+            }) as any[];
+
+            // Build tools array for OpenAI format
+            let openaiTools: OpenAI.ChatCompletionTool[] | undefined;
+            if (request.tools && request.tools.length > 0) {
+                openaiTools = request.tools.map((tool) => ({
+                    type: 'function' as const,
+                    function: {
+                        name: tool.name,
+                        description: tool.description,
+                        parameters: tool.parameters as unknown as OpenAI.FunctionParameters,
+                    },
+                }));
+            }
 
             const response = await client.chat.completions.create({
                 model: model,
@@ -169,6 +236,7 @@ export class OpenAIProvider implements Provider {
                 temperature: options.temperature,
                 max_tokens: options.maxTokens,
                 response_format: request.responseFormat,
+                ...(openaiTools ? { tools: openaiTools } : {}),
             });
 
             const choice = response.choices[0];
@@ -196,6 +264,161 @@ export class OpenAIProvider implements Provider {
         } catch (error) {
             // Sanitize error to remove any API keys from error messages
             // Use spotclean for comprehensive error sanitization
+            throw createSafeError(error as Error, { provider: 'openai' });
+        }
+    }
+
+    /**
+     * Execute a request with streaming response
+     */
+    async *executeStream(
+        request: Request,
+        options: ExecutionOptions = {}
+    ): AsyncIterable<StreamChunk> {
+        const apiKey = options.apiKey || process.env.OPENAI_API_KEY;
+        
+        if (!apiKey) {
+            throw new Error('OpenAI API key is required. Set OPENAI_API_KEY environment variable.');
+        }
+
+        // Validate key format
+        const validation = redactor.validateKey(apiKey, 'openai');
+        if (!validation.valid) {
+            throw new Error('Invalid OpenAI API key format');
+        }
+
+        try {
+            const client = new OpenAI({ apiKey });
+
+            const model = options.model || request.model || 'gpt-4';
+
+            // Convert messages to OpenAI format
+            const messages = request.messages.map((msg) => {
+                if (msg.role === 'tool') {
+                    return {
+                        role: 'tool',
+                        content: typeof msg.content === 'string'
+                            ? msg.content
+                            : JSON.stringify(msg.content),
+                        tool_call_id: (msg as any).tool_call_id || '',
+                    };
+                } else if (msg.role === 'assistant' && (msg as any).tool_calls) {
+                    return {
+                        role: 'assistant',
+                        content: msg.content,
+                        tool_calls: (msg as any).tool_calls,
+                    };
+                } else {
+                    const role = msg.role === 'developer' ? 'system' : msg.role;
+                    return {
+                        role: role,
+                        content:
+                            typeof msg.content === 'string'
+                                ? msg.content
+                                : JSON.stringify(msg.content),
+                        name: msg.name,
+                    };
+                }
+            }) as any[];
+
+            // Build tools array
+            let openaiTools: OpenAI.ChatCompletionTool[] | undefined;
+            if (request.tools && request.tools.length > 0) {
+                openaiTools = request.tools.map((tool) => ({
+                    type: 'function' as const,
+                    function: {
+                        name: tool.name,
+                        description: tool.description,
+                        parameters: tool.parameters as unknown as OpenAI.FunctionParameters,
+                    },
+                }));
+            }
+
+            const stream = await client.chat.completions.create({
+                model: model,
+                messages: messages,
+                temperature: options.temperature,
+                max_tokens: options.maxTokens,
+                stream: true,
+                stream_options: { include_usage: true },
+                ...(openaiTools ? { tools: openaiTools } : {}),
+            });
+
+            // Track tool calls being built
+            const toolCallsInProgress: Map<number, { id: string; name: string; arguments: string }> = new Map();
+
+            for await (const chunk of stream) {
+                const delta = chunk.choices[0]?.delta;
+                
+                if (delta?.content) {
+                    yield { type: 'text', text: delta.content };
+                }
+
+                if (delta?.tool_calls) {
+                    for (const tc of delta.tool_calls) {
+                        const index = tc.index;
+                        
+                        if (tc.id) {
+                            // New tool call starting
+                            toolCallsInProgress.set(index, {
+                                id: tc.id,
+                                name: tc.function?.name || '',
+                                arguments: '',
+                            });
+                            yield {
+                                type: 'tool_call_start',
+                                toolCall: {
+                                    id: tc.id,
+                                    index,
+                                    name: tc.function?.name,
+                                },
+                            };
+                        }
+                        
+                        if (tc.function?.arguments) {
+                            const toolCall = toolCallsInProgress.get(index);
+                            if (toolCall) {
+                                toolCall.arguments += tc.function.arguments;
+                                yield {
+                                    type: 'tool_call_delta',
+                                    toolCall: {
+                                        index,
+                                        argumentsDelta: tc.function.arguments,
+                                    },
+                                };
+                            }
+                        }
+                    }
+                }
+
+                // Check for finish reason to emit tool_call_end
+                if (chunk.choices[0]?.finish_reason === 'tool_calls') {
+                    for (const [index, toolCall] of toolCallsInProgress) {
+                        yield {
+                            type: 'tool_call_end',
+                            toolCall: {
+                                id: toolCall.id,
+                                index,
+                                name: toolCall.name,
+                            },
+                        };
+                    }
+                }
+
+                // Usage comes at the end
+                if (chunk.usage) {
+                    yield {
+                        type: 'usage',
+                        usage: {
+                            inputTokens: chunk.usage.prompt_tokens,
+                            outputTokens: chunk.usage.completion_tokens,
+                        },
+                    };
+                }
+            }
+
+            yield { type: 'done' };
+        } catch (error) {
             throw createSafeError(error as Error, { provider: 'openai' });
         }
     }
