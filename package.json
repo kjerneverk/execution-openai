@@ -39,7 +39,7 @@
   "dependencies": {
     "@utilarium/offrecord": "^0.0.3",
     "@utilarium/spotclean": "^0.0.4",
-    "openai": "^6.16.0",
+    "openai": "^6.22.0",
     "tiktoken": "^1.0.21",
     "undici": "^7.21.0"
   },
