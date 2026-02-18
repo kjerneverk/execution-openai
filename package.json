@@ -1,6 +1,6 @@
 {
   "name": "@kjerneverk/execution-openai",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "OpenAI provider for execution - implements Provider interface",
   "type": "module",
   "main": "./dist/index.js",
@@ -39,7 +39,7 @@
   "dependencies": {
     "@utilarium/offrecord": "^0.0.3",
     "@utilarium/spotclean": "^0.0.4",
-    "openai": "^6.16.0",
+    "openai": "^6.22.0",
     "tiktoken": "^1.0.21",
     "undici": "^7.21.0"
   },
