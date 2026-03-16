@@ -379,6 +379,19 @@ export class OpenAIProvider implements Provider {
                                 },
                             };
                         }
+
+                        if (tc.function?.name) {
+                            const existing = toolCallsInProgress.get(index);
+                            if (existing) {
+                                existing.name = tc.function.name;
+                            } else {
+                                toolCallsInProgress.set(index, {
+                                    id: tc.id || '',
+                                    name: tc.function.name,
+                                    arguments: '',
+                                });
+                            }
+                        }
                         
                         if (tc.function?.arguments) {
                             const toolCall = toolCallsInProgress.get(index);
