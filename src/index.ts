@@ -253,7 +253,7 @@ export class OpenAIProvider implements Provider {
             }
             const client = new OpenAI(clientOptions);
 
-            const model = options.model || request.model || 'gpt-4o';
+            const model = options.model || request.model || 'gpt-5.4';
 
             const messages = mapRequestMessagesToOpenAI(request);
             const openaiTools = buildTools(request);
@@ -325,7 +325,7 @@ export class OpenAIProvider implements Provider {
             }
             const client = new OpenAI(clientOptions);
 
-            const model = options.model || request.model || 'gpt-4o';
+            const model = options.model || request.model || 'gpt-5.4';
 
             const messages = mapRequestMessagesToOpenAI(request);
             const openaiTools = buildTools(request);

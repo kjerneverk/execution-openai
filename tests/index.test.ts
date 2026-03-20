@@ -79,7 +79,7 @@ describe('OpenAIProvider', () => {
     it('should throw error when no API key is provided', async () => {
       const request: Request = {
         messages: [{ role: 'user', content: 'Hello' }],
-        model: 'gpt-4',
+        model: 'gpt-5.4',
         addMessage: vi.fn(),
       };
 
@@ -91,7 +91,7 @@ describe('OpenAIProvider', () => {
     it('should throw error when API key is empty string', async () => {
       const request: Request = {
         messages: [{ role: 'user', content: 'Hello' }],
-        model: 'gpt-4',
+        model: 'gpt-5.4',
         addMessage: vi.fn(),
       };
 
@@ -162,7 +162,7 @@ describe('Type exports', () => {
   it('should export ExecutionOptions type', () => {
     const opts: ExecutionOptions = {
       apiKey: 'test-key',
-      model: 'gpt-4',
+      model: 'gpt-5.4',
       temperature: 0.7,
       maxTokens: 1000,
       timeout: 30000,
@@ -175,7 +175,7 @@ describe('Type exports', () => {
   it('should export ProviderResponse type', () => {
     const response: ProviderResponse = {
       content: 'Hello!',
-      model: 'gpt-4',
+      model: 'gpt-5.4',
       usage: {
         inputTokens: 10,
         outputTokens: 5,
@@ -188,7 +188,7 @@ describe('Type exports', () => {
   it('should support toolCalls in ProviderResponse', () => {
     const response: ProviderResponse = {
       content: '',
-      model: 'gpt-4',
+      model: 'gpt-5.4',
       toolCalls: [
         {
           id: 'call_123',

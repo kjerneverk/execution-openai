@@ -53,7 +53,7 @@ describe('OpenAIProvider streaming tool metadata', () => {
         const chunks: StreamChunk[] = [];
 
         for await (const chunk of provider.executeStream({
-            model: 'gpt-4o',
+            model: 'gpt-5.4',
             messages: [{ role: 'user', content: 'weather?' }],
             addMessage: () => undefined,
         } as any)) {

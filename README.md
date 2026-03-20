@@ -22,7 +22,7 @@ const provider = new OpenAIProvider();
 // Execute a request
 const response = await provider.execute(
   {
-    model: 'gpt-4o',
+    model: 'gpt-5.4',
     messages: [
       { role: 'system', content: 'You are helpful.' },
       { role: 'user', content: 'Hello!' }
@@ -43,7 +43,7 @@ console.log(response.usage); // { inputTokens: X, outputTokens: Y }
 ## Supported Models
 
 The provider supports Chat Completions for current OpenAI models, including:
-- GPT family (`gpt-*`, e.g. `gpt-4o`, `gpt-5`)
+- GPT family (`gpt-*`). If you omit the model on the request and in options, the provider defaults to **`gpt-5.4`** (current GPT‑5 flagship in the official SDK). You can still pass `gpt-5`, `gpt-5-mini`, `gpt-4o`, etc.
 - Reasoning models (`o1`, `o3`, `o4`, …)
 - Fine-tuned chat models (`ft:…`)
 - Consumer-style IDs such as `chatgpt-4o-latest` where your key has access

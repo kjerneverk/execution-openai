@@ -36,7 +36,7 @@ describe('Chat completion request params', () => {
                     },
                 },
             ],
-            model: 'gpt-4o',
+            model: 'gpt-5.4',
             usage: { prompt_tokens: 1, completion_tokens: 1 },
         });
     });
@@ -45,7 +45,7 @@ describe('Chat completion request params', () => {
         const provider = new OpenAIProvider();
         await provider.execute(
             {
-                model: 'gpt-4o',
+                model: 'gpt-5.4',
                 messages: [{ role: 'user', content: 'hi' }],
                 addMessage: () => undefined,
             } as any,
@@ -81,7 +81,7 @@ describe('Chat completion request params', () => {
         const provider = new OpenAIProvider();
         await provider.execute(
             {
-                model: 'gpt-4o',
+                model: 'gpt-5.4',
                 messages: [{ role: 'user', content: 'hi' }],
                 addMessage: () => undefined,
             } as any,
@@ -92,11 +92,25 @@ describe('Chat completion request params', () => {
         expect(arg.temperature).toBe(0.2);
     });
 
+    it('defaults to gpt-5.4 when model is omitted on request and options', async () => {
+        const provider = new OpenAIProvider();
+        await provider.execute(
+            {
+                model: '',
+                messages: [{ role: 'user', content: 'hi' }],
+                addMessage: () => undefined,
+            } as any
+        );
+
+        const arg = mocks.create.mock.calls[0][0] as { model: string };
+        expect(arg.model).toBe('gpt-5.4');
+    });
+
     it('maps developer messages with role developer', async () => {
         const provider = new OpenAIProvider();
         await provider.execute(
             {
-                model: 'gpt-4o',
+                model: 'gpt-5.4',
                 messages: [{ role: 'developer', content: 'You are concise.' }],
                 addMessage: () => undefined,
             } as any
