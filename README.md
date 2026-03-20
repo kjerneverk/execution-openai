@@ -22,7 +22,7 @@ const provider = new OpenAIProvider();
 // Execute a request
 const response = await provider.execute(
   {
-    model: 'gpt-4o',
+    model: 'gpt-5.4',
     messages: [
       { role: 'system', content: 'You are helpful.' },
       { role: 'user', content: 'Hello!' }
@@ -42,10 +42,13 @@ console.log(response.usage); // { inputTokens: X, outputTokens: Y }
 
 ## Supported Models
 
-The provider supports all OpenAI models:
-- GPT-4 family (gpt-4, gpt-4o, gpt-4-turbo, etc.)
-- O-series (o1, o1-preview, o1-mini, o3, etc.)
-- GPT-3.5 family
+The provider supports Chat Completions for current OpenAI models, including:
+- GPT family (`gpt-*`). If you omit the model on the request and in options, the provider defaults to **`gpt-5.4`** (current GPT‑5 flagship in the official SDK). You can still pass `gpt-5`, `gpt-5-mini`, `gpt-4o`, etc.
+- Reasoning models (`o1`, `o3`, `o4`, …)
+- Fine-tuned chat models (`ft:…`)
+- Consumer-style IDs such as `chatgpt-4o-latest` where your key has access
+
+It uses `max_completion_tokens` (not deprecated `max_tokens`) so O-series models receive a valid cap, and it omits `temperature` for reasoning models where the API rejects custom values. `developer` system prompts are sent as the `developer` role per current API guidance.
 
 ## API Key
 
