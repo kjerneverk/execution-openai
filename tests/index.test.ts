@@ -42,6 +42,13 @@ describe('OpenAIProvider', () => {
       expect(provider.supportsModel('o4-mini')).toBe(true);
     });
 
+    it('should support GPT-5 family and fine-tuned ft: models', () => {
+      expect(provider.supportsModel('gpt-5')).toBe(true);
+      expect(provider.supportsModel('gpt-5.1')).toBe(true);
+      expect(provider.supportsModel('ft:gpt-4o-mini:acme:custom:id')).toBe(true);
+      expect(provider.supportsModel('chatgpt-4o-latest')).toBe(true);
+    });
+
     it('should not support Claude models', () => {
       expect(provider.supportsModel('claude-3-opus-20240229')).toBe(false);
       expect(provider.supportsModel('claude-3-sonnet-20240229')).toBe(false);

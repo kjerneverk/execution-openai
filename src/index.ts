@@ -131,6 +131,74 @@ export interface ExecutionOptions {
     retries?: number;
 }
 
+/** O-series / reasoning models reject custom temperature on Chat Completions. */
+function isOpenAIReasoningModel(model: string): boolean {
+    return /^o\d/i.test(model.trim());
+}
+
+function mapRequestMessagesToOpenAI(request: Request): OpenAI.ChatCompletionMessageParam[] {
+    return request.messages.map((msg) => {
+        if (msg.role === 'tool') {
+            return {
+                role: 'tool',
+                content: typeof msg.content === 'string'
+                    ? msg.content
+                    : JSON.stringify(msg.content),
+                tool_call_id: (msg as { tool_call_id?: string }).tool_call_id || '',
+            };
+        }
+        if (msg.role === 'assistant') {
+            const extra = msg as unknown as { tool_calls?: unknown };
+            if (extra.tool_calls) {
+                return {
+                    role: 'assistant',
+                    content: msg.content,
+                    tool_calls: extra.tool_calls,
+                } as OpenAI.ChatCompletionMessageParam;
+            }
+        }
+        return {
+            role: msg.role,
+            content:
+                typeof msg.content === 'string'
+                    ? msg.content
+                    : JSON.stringify(msg.content),
+            ...(msg.name ? { name: msg.name } : {}),
+        } as OpenAI.ChatCompletionMessageParam;
+    });
+}
+
+function buildTools(request: Request): OpenAI.ChatCompletionTool[] | undefined {
+    if (!request.tools?.length) {
+        return undefined;
+    }
+    return request.tools.map((tool) => ({
+        type: 'function' as const,
+        function: {
+            name: tool.name,
+            description: tool.description,
+            parameters: tool.parameters as unknown as OpenAI.FunctionParameters,
+        },
+    }));
+}
+
+function appendMaxTokensAndTemperature(
+    model: string,
+    options: ExecutionOptions,
+    params: OpenAI.ChatCompletionCreateParams
+): void {
+    if (options.maxTokens != null) {
+        params.max_completion_tokens = options.maxTokens;
+    }
+    if (
+        options.temperature !== undefined &&
+        options.temperature !== null &&
+        !isOpenAIReasoningModel(model)
+    ) {
+        params.temperature = options.temperature;
+    }
+}
+
 export interface Provider {
     readonly name: string;
     execute(request: Request, options?: ExecutionOptions): Promise<ProviderResponse>;
@@ -149,11 +217,12 @@ export class OpenAIProvider implements Provider {
      */
     supportsModel(model: Model): boolean {
         if (!model) return true; // Default to OpenAI
+        const m = model.toLowerCase();
         return (
-            model.startsWith('gpt') ||
-            model.startsWith('o1') ||
-            model.startsWith('o3') ||
-            model.startsWith('o4')
+            m.startsWith('gpt') ||
+            /^o\d/.test(m) ||
+            m.startsWith('ft:') ||
+            m.startsWith('chatgpt-4o')
         );
     }
 
@@ -184,65 +253,26 @@ export class OpenAIProvider implements Provider {
             }
             const client = new OpenAI(clientOptions);
 
-            const model = options.model || request.model || 'gpt-4';
+            const model = options.model || request.model || 'gpt-4o';
 
-            // Convert messages to OpenAI format
-            const messages = request.messages.map((msg) => {
-                if (msg.role === 'tool') {
-                    // Tool result message
-                    return {
-                        role: 'tool',
-                        content: typeof msg.content === 'string'
-                            ? msg.content
-                            : JSON.stringify(msg.content),
-                        tool_call_id: (msg as any).tool_call_id || '',
-                    };
-                } else if (msg.role === 'assistant' && (msg as any).tool_calls) {
-                    // Assistant message with tool calls
-                    return {
-                        role: 'assistant',
-                        content: msg.content,
-                        tool_calls: (msg as any).tool_calls,
-                    };
-                } else {
-                    const role = msg.role === 'developer' ? 'system' : msg.role;
-                    return {
-                        role: role,
-                        content:
-                            typeof msg.content === 'string'
-                                ? msg.content
-                                : JSON.stringify(msg.content),
-                        name: msg.name,
-                    };
-                }
-            }) as any[];
+            const messages = mapRequestMessagesToOpenAI(request);
+            const openaiTools = buildTools(request);
 
-            // Build tools array for OpenAI format
-            let openaiTools: OpenAI.ChatCompletionTool[] | undefined;
-            if (request.tools && request.tools.length > 0) {
-                openaiTools = request.tools.map((tool) => ({
-                    type: 'function' as const,
-                    function: {
-                        name: tool.name,
-                        description: tool.description,
-                        parameters: tool.parameters as unknown as OpenAI.FunctionParameters,
-                    },
-                }));
-            }
-
-            const response = await client.chat.completions.create({
-                model: model,
-                messages: messages,
-                temperature: options.temperature,
-                max_tokens: options.maxTokens,
-                response_format: request.responseFormat,
+            const params: OpenAI.ChatCompletionCreateParams = {
+                model,
+                messages,
+                ...(request.responseFormat != null ? { response_format: request.responseFormat } : {}),
                 ...(openaiTools ? { tools: openaiTools } : {}),
-            });
+            };
+            appendMaxTokensAndTemperature(model, options, params);
+
+            const response = await client.chat.completions.create(params);
 
             const choice = response.choices[0];
+            const assistantMessage = choice.message;
 
             return {
-                content: choice.message.content || '',
+                content: assistantMessage.content ?? assistantMessage.refusal ?? '',
                 model: response.model,
                 usage: response.usage
                     ? {
@@ -295,59 +325,22 @@ export class OpenAIProvider implements Provider {
             }
             const client = new OpenAI(clientOptions);
 
-            const model = options.model || request.model || 'gpt-4';
+            const model = options.model || request.model || 'gpt-4o';
 
-            // Convert messages to OpenAI format
-            const messages = request.messages.map((msg) => {
-                if (msg.role === 'tool') {
-                    return {
-                        role: 'tool',
-                        content: typeof msg.content === 'string'
-                            ? msg.content
-                            : JSON.stringify(msg.content),
-                        tool_call_id: (msg as any).tool_call_id || '',
-                    };
-                } else if (msg.role === 'assistant' && (msg as any).tool_calls) {
-                    return {
-                        role: 'assistant',
-                        content: msg.content,
-                        tool_calls: (msg as any).tool_calls,
-                    };
-                } else {
-                    const role = msg.role === 'developer' ? 'system' : msg.role;
-                    return {
-                        role: role,
-                        content:
-                            typeof msg.content === 'string'
-                                ? msg.content
-                                : JSON.stringify(msg.content),
-                        name: msg.name,
-                    };
-                }
-            }) as any[];
+            const messages = mapRequestMessagesToOpenAI(request);
+            const openaiTools = buildTools(request);
 
-            // Build tools array
-            let openaiTools: OpenAI.ChatCompletionTool[] | undefined;
-            if (request.tools && request.tools.length > 0) {
-                openaiTools = request.tools.map((tool) => ({
-                    type: 'function' as const,
-                    function: {
-                        name: tool.name,
-                        description: tool.description,
-                        parameters: tool.parameters as unknown as OpenAI.FunctionParameters,
-                    },
-                }));
-            }
-
-            const stream = await client.chat.completions.create({
-                model: model,
-                messages: messages,
-                temperature: options.temperature,
-                max_tokens: options.maxTokens,
+            const params: OpenAI.ChatCompletionCreateParamsStreaming = {
+                model,
+                messages,
                 stream: true,
                 stream_options: { include_usage: true },
+                ...(request.responseFormat != null ? { response_format: request.responseFormat } : {}),
                 ...(openaiTools ? { tools: openaiTools } : {}),
-            });
+            };
+            appendMaxTokensAndTemperature(model, options, params);
+
+            const stream = await client.chat.completions.create(params);
 
             // Track tool calls being built
             const toolCallsInProgress: Map<number, { id: string; name: string; arguments: string }> = new Map();
@@ -357,6 +350,10 @@ export class OpenAIProvider implements Provider {
                 
                 if (delta?.content) {
                     yield { type: 'text', text: delta.content };
+                }
+
+                if (delta?.refusal) {
+                    yield { type: 'text', text: delta.refusal };
                 }
 
                 if (delta?.tool_calls) {
