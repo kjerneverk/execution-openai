@@ -12,7 +12,7 @@ const provider = new OpenAIProvider({
 });
 
 const response = await provider.execute(messages, {
-  model: 'gpt-4o'
+  model: 'gpt-5.4'
 });
 ```
 
@@ -31,18 +31,17 @@ new OpenAIProvider({
 
 | Model | Vision | Tools | Notes |
 |-------|--------|-------|-------|
-| gpt-4o | ✅ | ✅ | Recommended |
-| gpt-4o-mini | ✅ | ✅ | Cheaper |
-| gpt-4-turbo | ✅ | ✅ | |
-| o1 | ❌ | ❌ | Reasoning, uses 'developer' role |
-| o1-mini | ❌ | ❌ | Faster reasoning |
+| gpt-5.4 | ✅ | ✅ | Default when model omitted; current GPT‑5 flagship (per SDK) |
+| gpt-5 / gpt-5-mini | ✅ | ✅ | Smaller / alternate GPT‑5 variants |
+| gpt-4o | ✅ | ✅ | Still supported |
+| o1 / o3 / o4 | varies | varies | Reasoning family; custom `temperature` omitted |
 
 ## Token Counting
 
 ```typescript
 import { countTokens, getEncoding } from 'execution-openai';
 
-const tokens = countTokens('Hello!', 'gpt-4o');
+const tokens = countTokens('Hello!', 'gpt-5.4');
 ```
 
 ## Dependencies

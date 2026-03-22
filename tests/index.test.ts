@@ -42,6 +42,13 @@ describe('OpenAIProvider', () => {
       expect(provider.supportsModel('o4-mini')).toBe(true);
     });
 
+    it('should support GPT-5 family and fine-tuned ft: models', () => {
+      expect(provider.supportsModel('gpt-5')).toBe(true);
+      expect(provider.supportsModel('gpt-5.1')).toBe(true);
+      expect(provider.supportsModel('ft:gpt-4o-mini:acme:custom:id')).toBe(true);
+      expect(provider.supportsModel('chatgpt-4o-latest')).toBe(true);
+    });
+
     it('should not support Claude models', () => {
       expect(provider.supportsModel('claude-3-opus-20240229')).toBe(false);
       expect(provider.supportsModel('claude-3-sonnet-20240229')).toBe(false);
@@ -72,7 +79,7 @@ describe('OpenAIProvider', () => {
     it('should throw error when no API key is provided', async () => {
       const request: Request = {
         messages: [{ role: 'user', content: 'Hello' }],
-        model: 'gpt-4',
+        model: 'gpt-5.4',
         addMessage: vi.fn(),
       };
 
@@ -84,7 +91,7 @@ describe('OpenAIProvider', () => {
     it('should throw error when API key is empty string', async () => {
       const request: Request = {
         messages: [{ role: 'user', content: 'Hello' }],
-        model: 'gpt-4',
+        model: 'gpt-5.4',
         addMessage: vi.fn(),
       };
 
@@ -155,7 +162,7 @@ describe('Type exports', () => {
   it('should export ExecutionOptions type', () => {
     const opts: ExecutionOptions = {
       apiKey: 'test-key',
-      model: 'gpt-4',
+      model: 'gpt-5.4',
       temperature: 0.7,
       maxTokens: 1000,
       timeout: 30000,
@@ -168,7 +175,7 @@ describe('Type exports', () => {
   it('should export ProviderResponse type', () => {
     const response: ProviderResponse = {
       content: 'Hello!',
-      model: 'gpt-4',
+      model: 'gpt-5.4',
       usage: {
         inputTokens: 10,
         outputTokens: 5,
@@ -181,7 +188,7 @@ describe('Type exports', () => {
   it('should support toolCalls in ProviderResponse', () => {
     const response: ProviderResponse = {
       content: '',
-      model: 'gpt-4',
+      model: 'gpt-5.4',
       toolCalls: [
         {
           id: 'call_123',
